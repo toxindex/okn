@@ -25,14 +25,28 @@ assumes a **static IP**; DNS support may be added if needed.
 
 ## Networking
 
-- Planned: expose this node via the subdomain **okn.toxindex.com**.
-- ONAI deploys/runs the software; once running it needs little attention.
-- Next step on ONAI side: a call with Volkmar (or another ONAI engineer) to help
-  deploy the software on the host.
+The node runs on **spark3**, a DGX Spark on the residential cluster — behind NAT
+with no static public IP. ONAI assumes a static IP, so we bridge over Tailscale
+to a small GCP relay that holds a reserved static IP:
+
+```
+external ONAI nodes  <--TCP-->  okn-relay (static IP)  <--Tailscale-->  spark3
+                                 okn.toxindex.com
+```
+
+This matches the other toxindex relays (`yard-proxy`, `qdrant-relay`, `kg-proxy`).
+The relay is defined as IaC in [`terraform/`](terraform/) under the GCP `toxindex`
+project. `spark3` is already on the tailnet (`100.91.51.95`).
+
+ONAI deploys/runs the node software; once running it needs little attention.
+Next step on ONAI's side: a call with Volkmar (or another ONAI engineer) to help
+deploy on the host.
 
 ## Status
 
-- [ ] Select / commit the DGX Spark host
-- [ ] Set up `okn.toxindex.com` subdomain
+- [x] Commit the host — **spark3** (DGX Spark), already on the tailnet
+- [x] Design the static-IP path — GCP Tailscale relay (`terraform/`)
+- [ ] Confirm ONAI TCP port(s) and whether outbound needs the static IP too
+- [ ] `terraform apply` the relay + create `okn.toxindex.com` A record
 - [ ] Coordinate deployment call with ONAI
 - [ ] Deploy and run the ONAI node software

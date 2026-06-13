@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars (gitignored) and fill in, or use TF_VAR_* env vars.
+
+# Tailscale auth key for the relay to join the tailnet unattended.
+# Generate at https://login.tailscale.com/admin/settings/keys
+# Recommended: Reusable + Ephemeral + Pre-approved, tagged tag:relay.
+tailscale_auth_key = "tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# TCP port(s) the ONAI node uses. CONFIRM WITH GUHA before apply.
+# onai_ports = [12345]
+
+# spark3 is already on the tailnet; override only if its Tailscale IP changes.
+# spark3_tailscale_ip = "100.91.51.95"
