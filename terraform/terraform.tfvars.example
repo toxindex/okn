@@ -8,5 +8,5 @@ tailscale_auth_key = "tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # TCP port(s) the ONAI node uses. CONFIRM WITH GUHA before apply.
 # onai_ports = [12345]
 
-# spark3 is already on the tailnet; override only if its Tailscale IP changes.
-# spark3_tailscale_ip = "100.91.51.95"
+# Host of record is spark1 (100.103.111.95). To move the node to spark3:
+# spark_tailscale_ip = "100.91.51.95"

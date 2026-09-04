@@ -1,8 +1,8 @@
 #!/bin/bash
-# okn relay startup: join Tailscale and forward each ONAI TCP port to spark3.
+# okn relay startup: join Tailscale and forward each ONAI TCP port to the Spark.
 set -euxo pipefail
 
-SPARK3_IP="${spark3_ip}"
+SPARK_IP="${spark_ip}"
 ONAI_PORTS="${onai_ports}"
 
 # --- Tailscale -------------------------------------------------------------
@@ -20,17 +20,17 @@ AUTH_KEY="$(curl -s -H "Metadata-Flavor: Google" \
 
 tailscale up --auth-key="$AUTH_KEY" --hostname=okn-relay --accept-routes
 
-# --- TCP forwarding: public:PORT -> spark3:PORT over the tailnet ------------
+# --- TCP forwarding: public:PORT -> spark:PORT over the tailnet -------------
 # One systemd unit per port using socat. Restarts on failure / reboot.
 for PORT in $ONAI_PORTS; do
   cat >/etc/systemd/system/okn-relay@$PORT.service <<UNIT
 [Unit]
-Description=okn relay TCP :$PORT -> spark3 over Tailscale
+Description=okn relay TCP :$PORT -> DGX Spark over Tailscale
 After=tailscaled.service network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/socat TCP4-LISTEN:$PORT,reuseaddr,fork TCP4:$SPARK3_IP:$PORT
+ExecStart=/usr/bin/socat TCP4-LISTEN:$PORT,reuseaddr,fork TCP4:$SPARK_IP:$PORT
 Restart=always
 RestartSec=2
 
@@ -40,4 +40,4 @@ UNIT
   systemctl enable --now okn-relay@$PORT.service
 done
 
-echo "okn relay up: forwarding [$ONAI_PORTS] -> $SPARK3_IP"
+echo "okn relay up: forwarding [$ONAI_PORTS] -> $SPARK_IP"

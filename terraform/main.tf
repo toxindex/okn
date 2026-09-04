@@ -1,14 +1,15 @@
-# okn — GCP relay for the ONAI node running on spark3
+# okn — GCP relay for the ONAI node running on a DGX Spark
 #
-# spark3 (a DGX Spark on Insilica's residential cluster) runs the ONAI node
-# software but sits behind residential NAT with no static public IP. ONAI's
-# protocol speaks TCP (inbound + outbound) and assumes a static IP for us.
+# The ONAI node runs on a DGX Spark in Insilica's residential cluster (spark1 as
+# of Sept 2026 — see var.spark_tailscale_ip) which sits behind residential NAT
+# with no static public IP. ONAI's protocol speaks TCP (inbound + outbound) and
+# assumes a static IP for us.
 #
 # This module provisions a small GCP VM with a reserved static external IP that
-# joins the same Tailscale tailnet as spark3 and relays TCP between the public
-# internet and spark3 over the tailnet. okn.toxindex.com -> this relay's IP.
+# joins the same Tailscale tailnet as the Spark and relays TCP between the public
+# internet and the Spark over the tailnet. okn.toxindex.com -> this relay's IP.
 #
-#   external ONAI nodes  <--TCP-->  relay (static IP)  <--Tailscale-->  spark3
+#   external ONAI nodes  <--TCP-->  relay (static IP)  <--Tailscale-->  spark1
 #
 # Conventions match the other toxindex services (yard, sdag/flow): project
 # "toxindex", region us-central1, GCS-backed state.
@@ -61,16 +62,20 @@ variable "domain" {
   default     = "okn.toxindex.com"
 }
 
-variable "spark3_tailscale_ip" {
-  description = "Tailscale IP of spark3, where the ONAI node software runs"
+variable "spark_tailscale_ip" {
+  description = <<-EOT
+    Tailscale IP of the DGX Spark that runs the ONAI node software.
+    spark1 = 100.103.111.95 (current host). spark3 = 100.91.51.95 (fallback).
+    Changing this re-templates the relay's startup script (VM is recreated).
+  EOT
   type        = string
-  default     = "100.91.51.95"
+  default     = "100.103.111.95"
 }
 
 variable "onai_ports" {
   description = <<-EOT
     TCP ports the ONAI node listens on, relayed from the public internet to
-    spark3 over Tailscale. ONAI has not yet specified the port(s) — confirm with
+    the Spark over Tailscale. ONAI has not yet specified the port(s) — confirm with
     Guha before apply. Placeholder kept narrow on purpose.
   EOT
   type        = list(number)

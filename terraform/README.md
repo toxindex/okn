@@ -1,19 +1,22 @@
 # okn relay — Terraform
 
-Provisions a GCP relay that exposes the ONAI node (running on `spark3`) to the
-public internet at a **static IP**, bridging over Tailscale.
+Provisions a GCP relay that exposes the ONAI node (running on a DGX Spark,
+`spark1` as of Sept 2026) to the public internet at a **static IP**, bridging
+over Tailscale.
 
 ```
-external ONAI nodes  <--TCP-->  okn-relay (static IP)  <--Tailscale-->  spark3
+external ONAI nodes  <--TCP-->  okn-relay (static IP)  <--Tailscale-->  spark1
                                   okn.toxindex.com
 ```
 
 ## Why a relay
 
-`spark3` is a DGX Spark on Insilica's residential cluster — behind NAT, no
-static public IP. ONAI's protocol speaks TCP and assumes a static IP for us.
+The Sparks live on Insilica's residential cluster — behind NAT, no static
+public IP. ONAI's protocol speaks TCP and assumes a static IP for us.
 The relay is a cheap `e2-small` GCP VM with a reserved external IP that joins
-the same tailnet as `spark3` and `socat`-forwards each ONAI port to it.
+the same tailnet as the Spark and `socat`-forwards each ONAI port to it. The
+Spark is selected by `var.spark_tailscale_ip` (spark1 by default; spark3 is the
+documented fallback).
 
 This mirrors the existing toxindex relays (`yard-proxy`, `qdrant-relay`,
 `kg-proxy`, `searxng-mcp`) — same project (`toxindex`), region (`us-central1`),
@@ -26,7 +29,8 @@ and GCS-backed state.
 2. **ONAI port(s)** — `var.onai_ports` is empty until ONAI confirms the TCP
    port(s). With it empty, no public firewall rule is created (safe to apply
    the rest, but the relay won't forward anything yet).
-3. `spark3` already on the tailnet at `100.91.51.95` (verified).
+3. The target Spark already on the tailnet — `spark1` at `100.103.111.95`
+   (`spark3` at `100.91.51.95` if you switch `var.spark_tailscale_ip`).
 
 ## Deploy
 
@@ -48,6 +52,13 @@ terraform output relay_ip
 
 - **Port(s):** which TCP port(s) the node listens on → `var.onai_ports`.
 - **Symmetric static IP:** does ONAI identify us by source IP on our *outbound*
-  connections too? If so, `spark3` must route ONAI-bound traffic out through the
-  relay (the VM already sets `can_ip_forward`; add a Tailscale subnet route +
-  MASQUERADE and a policy route on `spark3`). Inbound-only is provisioned now.
+  connections too? If so, the Spark must route ONAI-bound traffic out through
+  the relay (the VM already sets `can_ip_forward`; add a Tailscale subnet route
+  + MASQUERADE and a policy route on the Spark). Inbound-only is provisioned now.
+
+## Status (2026-09-04)
+
+**Never applied.** There is no `okn-relay` VM or address in the `toxindex`
+project and no `okn.toxindex.com` record; the name currently resolves only via
+the Route53 wildcard to the main toxindex frontend LB (34.13.77.187). Apply is
+gated on ONAI's port list.

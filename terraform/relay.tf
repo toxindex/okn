@@ -107,13 +107,13 @@ resource "google_compute_instance" "okn_relay" {
   }
 
   metadata = {
-    spark3-ip  = var.spark3_tailscale_ip
+    spark-ip   = var.spark_tailscale_ip
     onai-ports = join(",", [for p in var.onai_ports : tostring(p)])
   }
 
   metadata_startup_script = templatefile("${path.module}/startup.sh.tpl", {
     auth_key_secret = google_secret_manager_secret.tailscale_auth_key.secret_id
-    spark3_ip       = var.spark3_tailscale_ip
+    spark_ip        = var.spark_tailscale_ip
     onai_ports      = join(" ", [for p in var.onai_ports : tostring(p)])
   })
 
