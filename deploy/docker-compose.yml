@@ -73,7 +73,10 @@ services:
         condition: service_healthy
     restart: on-failure
     environment:
-      AARDANT_READY_TIMEOUT_SECONDS: "600"
+      # with-aardant waits this long for the daemon's wire socket, then exits
+      # (and compose restarts it, forever). Native: 600 is fine. Under qemu the
+      # daemon's zk-circuit setup runs 10-20x slower — set 7200 in .env.
+      AARDANT_READY_TIMEOUT_SECONDS: ${AARDANT_READY_TIMEOUT_SECONDS:-600}
       AARDANT_READY_GRACE_SECONDS: "2"
       AARDANT_VLLM_GATEWAY_VLLM_ENDPOINT: http://vllm:8600/v1/chat/completions
     volumes:
