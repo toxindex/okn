@@ -6,9 +6,9 @@
 #   - tensor-parallel-size 2 -> 1. One GPU per Spark and no ConnectX link
 #     between spark0/spark1, so cross-node TP is not available; a 14B AWQ
 #     model (~9 GB of weights) fits on one GB10 with room for KV cache.
-#   - gpu-memory-utilization 0.8 -> 0.30. vLLM sizes this against the Spark's
-#     ~120 GB unified memory; 0.8 would starve the kazu-inference containers
-#     already on spark1. 0.30 ~= 36 GB, which is inside spark1's headroom.
+#   - gpu-memory-utilization 0.8 -> 0.60. vLLM sizes this against the Spark's
+#     ~120 GB unified memory. spark1's kazu-inference containers were stopped
+#     on 2026-09-04 to make room; 0.60 ~= 73 GB leaves ~35 GB for the host.
 #   - vllm/vllm-openai:nightly -> the spark-arena GB10 image already used by
 #     space-heater on spark0/spark1 (arm64, proven on this hardware).
 #   - vLLM listens on 8600 and is published so Prometheus (ops.insilica.co,
@@ -47,7 +47,7 @@ services:
       - --max-model-len
       - "40960"
       - --gpu-memory-utilization
-      - ${VLLM_GPU_MEM_UTIL:-0.30}
+      - ${VLLM_GPU_MEM_UTIL:-0.60}
       - --enable-auto-tool-choice
       - --tool-call-parser
       - hermes
@@ -58,11 +58,12 @@ services:
       start_period: 600s
       retries: 5
 
-  # ONAI's gateway. The published image is linux/amd64 ONLY (checked
-  # 2026-09-04 via `docker manifest inspect`); the Spark is aarch64. Until
-  # ONAI publishes an arm64 build this service needs qemu user emulation
-  # (`docker run --privileged --rm tonistiigi/binfmt --install amd64`) and the
-  # `platform:` pin below. Emulation is fine for a thin proxy, not for vLLM.
+  # ONAI's gateway. The published image is linux/amd64 ONLY; the Spark is
+  # aarch64. It runs here under qemu user emulation (binfmt installed on
+  # spark1 on 2026-09-04) with the `platform:` pin below. For a native build
+  # see ../gateway (submodule toxindex/aardant-vllm-gateway): once ONAI
+  # supplies arm64 binaries, `./build.sh arm64` there and switch `image:` to
+  # toxindex/aardant-vllm-gateway:0.0.1-arm64 and drop `platform:`.
   vllm-gateway:
     image: us-west4-docker.pkg.dev/aardant-489720/aardant-repo/aardant-vllm-gateway:0.0.1
     platform: linux/amd64

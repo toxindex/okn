@@ -5,14 +5,16 @@ the one-time state directory setup.
 
 ## 0. Preconditions
 
-- spark1 has ~64 GB of unified memory free (`free -g`). vLLM is capped at 30%
-  of GPU memory by `VLLM_GPU_MEM_UTIL`; do not raise it while the
-  `kazu-chemical-v1-*` containers are running.
+- The seven `kazu-chemical-v1-*` containers on spark1 were stopped on
+  2026-09-04 (they are still present; `docker start` revives them). With them
+  down spark1 has ~114 GB free and `VLLM_GPU_MEM_UTIL=0.60` is safe. If they
+  ever come back, drop it to 0.30.
 - Port 8600 is free (`ss -tln | grep 8600`). 8000 stays reserved for
   space-heater's router-facing vLLM.
-- The gateway image is amd64-only. Either ONAI has shipped an arm64 tag (edit
-  `image:` and drop `platform:` in the compose), or install qemu user
-  emulation once: `docker run --privileged --rm tonistiigi/binfmt --install amd64`.
+- The gateway image is amd64-only. qemu user emulation is already installed on
+  spark1 (`docker run --privileged --rm tonistiigi/binfmt --install amd64`,
+  2026-09-04; re-run after a reboot if `ls /proc/sys/fs/binfmt_misc` shows no
+  `qemu-x86_64`). For a native image see `../gateway/`.
 
 ## 1. Files
 
