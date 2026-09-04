@@ -96,11 +96,12 @@ scripts and bootstrap files; nothing to fork). Two paths, both in place:
 - [x] Compose adapted for the Spark (`deploy/`; TP=1, arm64 vLLM image, 8600)
 - [x] Monitoring wired — Prometheus job `onai`, fleet Quick Health row, "ONAI Node" dashboard
 - [x] kazu-inference stopped on spark1; **vLLM up** on spark1:8600 serving `qwen3-14b-awq` (AWQ Marlin kernel, FlashAttention 2)
-- [x] Gateway started on spark1 under qemu emulation; `gateway/` submodule ready for a native arm64 build
-- [ ] **Waiting on gateway:** `resource_info.bin` to appear under `gateway-state/.config/aardant_vllm_gateway/`, then send to ONAI
-- [ ] **Ask ONAI:** arm64 builds of `aardant` and `app` (for `gateway/build.sh arm64`)
+- [x] Gateway **ready** on spark1 under qemu emulation (2026-09-04, ~13 min to the wire socket; needs `AARDANT_READY_TIMEOUT_SECONDS=7200`). `app` is running against `http://vllm:8600`.
+- [x] `resource_info.bin` written (322 bytes). Canonical copy on spark1 at `~/okn/gateway-state/.config/aardant_vllm_gateway/resource_info.bin`; a copy sits in `deploy/resource_info.bin` on Tom's dev box (gitignored).
+- [ ] **Send ONAI** `resource_info.bin` (Shriphani, cc Guha + Volkmar)
+- [ ] **Ask ONAI:** arm64 builds of `aardant` and `app` (for `gateway/build.sh arm64`); `gateway/` submodule is ready for them
 - [ ] **Ask ONAI:** must the daemon's port 9000 be reachable from the internet? If yes: `terraform var.onai_ports=[9000]`, publish in compose, `terraform apply`, A record `okn.toxindex.com -> relay_ip`
+- [ ] **Tell ONAI what we observe:** after ready, the daemon holds no TCP/UDP sockets to the relays (`107.193.138.245:59090-93`; two of four ports answer from spark1) and nothing listens on 9000 inside the container. Either it connects lazily once ONAI registers the node, or something is still missing on our side. No vLLM requests have arrived yet.
 
 Correspondence gap: Tom's last message to ONAI was Jul 7 ("early next week").
-The next message should carry `resource_info.bin` (once written) and the two
-questions above.
+The next message should carry `resource_info.bin` and the items above.
