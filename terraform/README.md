@@ -24,11 +24,14 @@ and GCS-backed state.
 
 ## Prerequisites
 
-1. **Tailscale auth key** — generate a reusable, ephemeral, pre-approved key
-   (tag `tag:relay`) at <https://login.tailscale.com/admin/settings/keys>.
-2. **ONAI port(s)** — `var.onai_ports` is empty until ONAI confirms the TCP
-   port(s). With it empty, no public firewall rule is created (safe to apply
-   the rest, but the relay won't forward anything yet).
+1. **Tailscale auth key** — generate a reusable, ephemeral-node, pre-approved
+   key carrying `tag:okn-relay`. Pass it through `TF_VAR_tailscale_auth_key`;
+   do not write it to a committed file. The reusable key allows Terraform to
+   replace the VM, while ephemeral nodes disappear after removal. Tailscale
+   keys expire after at most 90 days, so rotate the Secret Manager value before
+   a later replacement. The tailnet policy permits this tag to reach only
+   `tag:dgx:9000`.
+2. **ONAI port** — TCP `9000` is the committed default.
 3. The target Spark already on the tailnet — `spark1` at `100.103.111.95`
    (`spark3` at `100.91.51.95` if you switch `var.spark_tailscale_ip`).
 
@@ -36,29 +39,39 @@ and GCS-backed state.
 
 ```bash
 cd terraform
-cp terraform.tfvars.example terraform.tfvars   # fill in auth key + ports
 terraform init
-terraform apply
+TF_VAR_tailscale_auth_key="$KEY" terraform apply
 ```
 
-Then point DNS at the output IP (Route53 zone `Z01199351P9ECYL3NLKM0`):
+Terraform also manages the Route 53 A record in zone
+`Z01199351P9ECYL3NLKM0`. Use an AWS profile with access to that zone:
 
 ```bash
-terraform output relay_ip
-# create A record okn.toxindex.com -> <relay_ip>
+AWS_PROFILE=iam_tom TF_VAR_tailscale_auth_key="$KEY" terraform apply
 ```
 
-## Open items (pending ONAI)
+## Health
 
-- **Port(s):** which TCP port(s) the node listens on → `var.onai_ports`.
+The relay serves a dependency-aware health response on port 80:
+
+```bash
+curl -i http://okn.toxindex.com/healthz
+```
+
+It returns HTTP 200 only if the relay can connect to `spark1:9000`. A 503
+response distinguishes a healthy relay from an unavailable Aardant listener.
+
+## Open item (pending ONAI)
+
 - **Symmetric static IP:** does ONAI identify us by source IP on our *outbound*
   connections too? If so, the Spark must route ONAI-bound traffic out through
   the relay (the VM already sets `can_ip_forward`; add a Tailscale subnet route
   + MASQUERADE and a policy route on the Spark). Inbound-only is provisioned now.
 
-## Status (2026-09-04)
+## Status (2026-09-08)
 
-**Never applied.** There is no `okn-relay` VM or address in the `toxindex`
-project and no `okn.toxindex.com` record; the name currently resolves only via
-the Route53 wildcard to the main toxindex frontend LB (34.13.77.187). Apply is
-gated on ONAI's port list.
+Deployed in GCP project `toxindex`, zone `us-central1-a`, with state in
+`gs://toxindex-terraform-state/okn`. The `e2-small` VM `okn-relay` uses reserved
+IP `35.232.167.66`. Route 53 zone `Z01199351P9ECYL3NLKM0` maps
+`okn.toxindex.com` to that address. Public firewall rules expose TCP `9000`
+for ONAI and TCP `80` for the health response.

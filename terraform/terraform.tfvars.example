@@ -2,11 +2,11 @@
 
 # Tailscale auth key for the relay to join the tailnet unattended.
 # Generate at https://login.tailscale.com/admin/settings/keys
-# Recommended: Reusable + Ephemeral + Pre-approved, tagged tag:relay.
+# Required: Reusable + Ephemeral + Pre-approved, tagged tag:okn-relay.
 tailscale_auth_key = "tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-# TCP port(s) the ONAI node uses. CONFIRM WITH GUHA before apply.
-# onai_ports = [12345]
+# Port 9000 is committed as the default. Override only if ONAI changes it.
+# onai_ports = [9000]
 
 # Host of record is spark1 (100.103.111.95). To move the node to spark3:
 # spark_tailscale_ip = "100.91.51.95"

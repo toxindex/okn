@@ -40,7 +40,7 @@ Switching hosts is one variable: `spark_tailscale_ip` in `terraform/`, and the
 ```
 deploy/                 docker compose for the Spark (vLLM + gateway) + .env.example + runbook
 gateway/                submodule toxindex/aardant-vllm-gateway: arm64 rebuild of ONAI's gateway image
-terraform/              GCP relay giving the node a static IP over Tailscale (NOT yet applied)
+terraform/              deployed GCP relay giving the node a static IP over Tailscale
 ```
 
 ## Networking
@@ -53,17 +53,15 @@ external ONAI nodes  <--TCP-->  okn-relay (static IP)  <--Tailscale-->  spark1
                                  okn.toxindex.com
 ```
 
-**Open question that may make the relay unnecessary:** ONAI's reference
-compose publishes no inbound port for the gateway, but inside the container
-the `aardant` daemon is configured to listen on `0.0.0.0:9000`
-(`aardant.toml`). If the daemon only dials out to ONAI's relays, the Spark's
-NAT is fine and the relay can be dropped; if 9000 must be reachable, set
-`terraform var.onai_ports = [9000]` and publish it in the compose. Confirm
-with ONAI before `terraform apply`.
+The deployed GCP relay has reserved IP `35.232.167.66`. Route 53 maps
+`okn.toxindex.com` directly to it, and public TCP `9000` is forwarded to
+`spark1:9000` over Tailscale. The tailnet ACL permits `tag:okn-relay` to reach
+only TCP `9000` on DGX nodes.
 
-Current DNS: `okn.toxindex.com` has no record of its own. It resolves via the
-Route53 wildcard to the main toxindex frontend LB (34.13.77.187), which is not
-this service.
+Visit <http://okn.toxindex.com/healthz> or run
+`curl -i http://okn.toxindex.com/healthz`. HTTP 200 means the relay can connect
+to the Spark gateway. HTTP 503 means the relay is up but Aardant is not
+accepting the forwarded connection.
 
 ## Monitoring
 
@@ -89,10 +87,10 @@ scripts and bootstrap files; nothing to fork). Two paths, both in place:
   needs only two arm64 binaries from ONAI (`aardant`, `app`). The amd64 build
   of the same Dockerfile is the validation that the packaging matches upstream.
 
-## Status (2026-09-04)
+## Status (2026-09-08)
 
 - [x] Commit a host — spark1 (was spark3; see table above)
-- [x] Design the static-IP path — GCP Tailscale relay (`terraform/`, validated)
+- [x] Deploy the static-IP path: `okn.toxindex.com` → `35.232.167.66` → Tailscale → `spark1:9000`
 - [x] Compose adapted for the Spark (`deploy/`; TP=1, arm64 vLLM image, 8600)
 - [x] Monitoring wired — Prometheus job `onai`, fleet Quick Health row, "ONAI Node" dashboard
 - [x] kazu-inference stopped on spark1; **vLLM up** on spark1:8600 serving `qwen3-14b-awq` (AWQ Marlin kernel, FlashAttention 2)
@@ -100,8 +98,7 @@ scripts and bootstrap files; nothing to fork). Two paths, both in place:
 - [x] `resource_info.bin` written (322 bytes). Canonical copy on spark1 at `~/okn/gateway-state/.config/aardant_vllm_gateway/resource_info.bin`; a copy sits in `deploy/resource_info.bin` on Tom's dev box (gitignored).
 - [ ] **Send ONAI** `resource_info.bin` (Shriphani, cc Guha + Volkmar)
 - [ ] **Ask ONAI:** arm64 builds of `aardant` and `app` (for `gateway/build.sh arm64`); `gateway/` submodule is ready for them
-- [ ] **Ask ONAI:** must the daemon's port 9000 be reachable from the internet? If yes: `terraform var.onai_ports=[9000]`, publish in compose, `terraform apply`, A record `okn.toxindex.com -> relay_ip`
-- [ ] **Tell ONAI what we observe:** after ready, the daemon holds no TCP/UDP sockets to the relays (`107.193.138.245:59090-93`; two of four ports answer from spark1) and nothing listens on 9000 inside the container. Either it connects lazily once ONAI registers the node, or something is still missing on our side. No vLLM requests have arrived yet.
+- [ ] **Tell ONAI what we observe:** the gateway and vLLM processes are running, but Aardant has no TCP listener. Its persisted config says port `51927`, while the expected public endpoint is `9000`. Logs repeatedly report neighbor connection refusals, aborted handshakes, `No exit nodes available`, and an unavailable SURB deposit. The public relay therefore reports HTTP 503 until ONAI resolves registration/bootstrap connectivity.
 
 Correspondence gap: Tom's last message to ONAI was Jul 7 ("early next week").
 The next message should carry `resource_info.bin` and the items above.
