@@ -56,6 +56,21 @@ resource "google_compute_firewall" "okn_onai_ingress" {
   target_tags   = ["okn-relay"]
 }
 
+# Public, read-only deployment health. The service returns 200 only when the
+# relay can reach the ONAI gateway on the Spark, and 503 otherwise.
+resource "google_compute_firewall" "okn_health" {
+  name    = "okn-allow-health"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["okn-relay"]
+}
+
 # SSH for setup/debug (kept open like the other toxindex relays).
 resource "google_compute_firewall" "okn_ssh" {
   name    = "okn-allow-ssh"

@@ -54,10 +54,16 @@ Send `resource_info.bin` to Shriphani (spalakod@onai.com), cc Guha and Volkmar.
 
 ## 4. Verify from outside
 
-- Ask ONAI whether their side sees the node.
-- If the gateway needs inbound TCP, that is the moment to `terraform apply`
-  the relay (`../terraform/`) with the confirmed port(s) and create the
-  `okn.toxindex.com` A record.
+The relay and DNS are deployed. Verify the complete relay-to-gateway path:
+
+```bash
+curl -i http://okn.toxindex.com/healthz
+```
+
+HTTP 200 means `spark1:9000` accepted the relay's TCP connection. HTTP 503
+means the relay is healthy but Aardant is not listening. Also ask ONAI whether
+their network sees the registered node, since a local TCP check cannot validate
+their decentralized protocol.
 
 ## Rollback
 

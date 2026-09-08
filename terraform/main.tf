@@ -25,6 +25,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
 
   backend "gcs" {
@@ -36,6 +40,10 @@ terraform {
 provider "google" {
   project = var.project_id
   region  = var.region
+}
+
+provider "aws" {
+  region = "us-east-1"
 }
 
 variable "project_id" {
@@ -74,12 +82,11 @@ variable "spark_tailscale_ip" {
 
 variable "onai_ports" {
   description = <<-EOT
-    TCP ports the ONAI node listens on, relayed from the public internet to
-    the Spark over Tailscale. ONAI has not yet specified the port(s) — confirm with
-    Guha before apply. Placeholder kept narrow on purpose.
+    TCP ports exposed by the relay and forwarded to the Spark over Tailscale.
+    Port 9000 is the public ONAI gateway endpoint.
   EOT
   type        = list(number)
-  default     = [] # TODO(guha): set the real ONAI TCP port(s)
+  default     = [9000]
 }
 
 variable "tailscale_auth_key" {
@@ -109,6 +116,14 @@ output "relay_ip" {
 }
 
 output "dns_instructions" {
-  value       = "Create A record: ${var.domain} -> ${google_compute_address.okn_relay.address} (Route53 zone Z01199351P9ECYL3NLKM0)"
-  description = "Route53 record to create after apply"
+  value       = "${aws_route53_record.okn.fqdn} -> ${google_compute_address.okn_relay.address}"
+  description = "Managed Route 53 record"
+}
+
+resource "aws_route53_record" "okn" {
+  zone_id = "Z01199351P9ECYL3NLKM0"
+  name    = var.domain
+  type    = "A"
+  ttl     = 60
+  records = [google_compute_address.okn_relay.address]
 }
